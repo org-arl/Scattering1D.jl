@@ -8,12 +8,12 @@
 
 module Scattering1D
 
-using AbstractFFTs: plan_rfft, plan_brfft, plan_bfft!
+using AbstractFFTs: plan_rfft, plan_brfft, plan_bfft!, plan_fft!
 using LinearAlgebra: mul!
 import FFTW
 
 export Wavelets, ScatteringSpec, ScatteringPlan, Coefficients, FirstOrder
-export scatter, scatter!, first_order, first_order!
+export scatter, scatter!, first_order, first_order!, backpropagate, backpropagate!
 export frequencies, bandwidths, modulations, mask, times
 
 ### types
@@ -60,7 +60,9 @@ end
 include("spec.jl")
 include("tables.jl")
 include("threaded.jl")
+include("threaded_pullback.jl")
 include("batched.jl")
+include("batched_pullback.jl")
 
 ### public API
 
@@ -107,5 +109,25 @@ Zeroth and first order of the scattering transform of each column of `x`,
 written into the `FirstOrder` `c`.
 """
 function first_order! end
+
+"""
+    backpropagate(plan, x, c̄)
+
+Gradient with respect to the signals `x` of a scalar whose gradient with
+respect to their scattering coefficients is `c̄`: the transpose of the
+transform's Jacobian applied to `c̄`.
+
+`c̄` is a `Coefficients` to go back through `scatter`, or a `FirstOrder` to go
+back through `first_order`. Entries of `c̄.S2` outside `mask(spec)` are
+ignored. The filters are constants: there is no gradient with respect to them.
+"""
+backpropagate(plan::ScatteringPlan, x::AbstractMatrix, c̄) = backpropagate!(similar(x), plan, x, c̄)
+
+"""
+    backpropagate!(x̄, plan, x, c̄)
+
+As `backpropagate`, written into `x̄`.
+"""
+function backpropagate! end
 
 end

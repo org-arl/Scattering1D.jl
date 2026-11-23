@@ -10,11 +10,11 @@ Given a batch of signals, it returns three sets of coefficients on a common time
 - `S1`: the low-passed envelope of each frequency band.
 - `S2`: the low-passed envelope of each modulation frequency within each band.
 
-The values are raw and linear. Taking logarithms or normalising is left to the caller.
+The values are raw and linear. Taking logarithms or normalizing is left to the caller.
 
 ## Installation
 
-The package is not registered. From the Julia package prompt, add it by URL:
+From the Julia package prompt:
 
 ```
 pkg> add https://github.com/org-arl/Scattering1D.jl
@@ -46,14 +46,14 @@ Building a plan takes a few seconds, because it measures FFT plans. Build it onc
 ## What the dimensions mean
 
 ```julia
-frequencies(spec)   # centre frequency of each band, Hz
+frequencies(spec)   # center frequency of each band, Hz
 bandwidths(spec)    # standard deviation of each band's response, Hz
-modulations(spec)   # centre frequency of each modulation wavelet, Hz
+modulations(spec)   # center frequency of each modulation wavelet, Hz
 mask(spec)          # modulation × band, true where S2 is computed
-times(spec, 40_000) # centre time of each bin, s, for 40,000-sample signals
+times(spec, 40_000) # center time of each bin, s, for 40,000-sample signals
 ```
 
-A modulation wavelet is applied to a band only if its centre frequency is at most `cutoff` (default 6) times the band's bandwidth. Narrow bands therefore get fewer modulation wavelets than wide ones. Entries of `S2` where `mask(spec)` is `false` are never written: they are zero in arrays made by `scatter` or `Coefficients`.
+A modulation wavelet is applied to a band only if its center frequency is at most `cutoff` (default 6) times the band's bandwidth. Narrow bands therefore get fewer modulation wavelets than wide ones. Entries of `S2` where `mask(spec)` is `false` are never written: they are zero in arrays made by `scatter` or `Coefficients`.
 
 ## Reusing output arrays
 
@@ -77,6 +77,25 @@ f = FirstOrder(plan, 16)
 first_order!(f, plan, x)
 ```
 
+## Gradients
+
+Gradients with respect to the signals pass through `scatter` and `first_order`, so the transform can sit after trainable steps or inside a loss function. The filters are fixed: there is no gradient with respect to them.
+
+With Zygote:
+
+```julia
+using Scattering1D, Zygote
+
+loss(x) = sum(abs2, scatter(plan, x).S1)
+x̄ = Zygote.gradient(loss, x)[1]      # same size as x
+```
+
+Mooncake works the same way once it is loaded. Enzyme needs ChainRulesCore loaded as well: `using Enzyme, ChainRulesCore`.
+
+Without an automatic-differentiation package, `backpropagate(plan, x, c̄)` returns the gradient with respect to `x` given the gradients `c̄` with respect to the coefficients, as a `Coefficients` or a `FirstOrder`. `backpropagate!(x̄, plan, x, c̄)` writes into an existing array.
+
+A gradient costs about two forward transforms on CPU threads and about four on a GPU. The first one after building a plan takes a few seconds longer, while the reverse FFT plans are measured.
+
 ## GPUs
 
 The kind of array given to `ScatteringPlan` selects the device. The coefficients come back as arrays of the same kind.
@@ -97,7 +116,7 @@ A plan holds work buffers and must not be used from several tasks at once.
 
 ## Settings
 
-`Wavelets(fmin, fmax, Q; crossover=1.0)` describes a constant-Q bank of Morlet wavelets: centre frequencies `fmin·2^(k/Q)` up to `fmax`, with Gaussian responses whose neighbours cross `crossover` standard deviations from their centres. A larger `crossover` gives narrower, less overlapping filters.
+`Wavelets(fmin, fmax, Q; crossover=1.0)` describes a constant-Q bank of Morlet wavelets: center frequencies `fmin·2^(k/Q)` up to `fmax`, with Gaussian responses whose neighbors cross `crossover` standard deviations from their centers. A larger `crossover` gives narrower, less overlapping filters.
 
 `ScatteringSpec(fs, bins, ψ1, ψ2; ...)` takes these keywords:
 
@@ -117,8 +136,15 @@ Not every number of bins is possible for every signal length, because the padded
 
 - **Filters** are Morlet wavelets defined in the frequency domain, with unit peak gain and zero gain at 0 Hz. First-order filters are zero at and above the Nyquist frequency.
 - **Edges.** Each signal is extended once by reflection, transformed, and the extension is cut from the output. Signals in a batch are independent.
-- **Time bins** are centred on equal intervals of the signal: bin `j` of `bins` covers samples `(j-1)·n/bins` to `j·n/bins`.
+- **Time bins** are centered on equal intervals of the signal: bin `j` of `bins` covers samples `(j-1)·n/bins` to `j·n/bins`.
 - **Smoothing** is the same Gaussian low-pass filter for every order.
+
+## Other packages
+
+Scattering1D.jl does one thing: a two-order scattering transform of 1D signals with fixed Morlet wavelets, as fast as it can. It has no trainable filters, no other wavelets, and no 2D or 3D transform. If you need any of those, these packages are a better fit:
+
+- [ScatteringTransform.jl](https://github.com/BoundaryValueProblems/ScatteringTransform.jl), in Julia, is a general scattering framework. Its filters can be trained. It supports any number of layers, other wavelet families and nonlinearities, and 2D signals.
+- [Kymatio](https://github.com/kymatio/kymatio), in Python, provides 1D, 2D and 3D scattering transforms with NumPy, PyTorch, TensorFlow, JAX, Keras and scikit-learn frontends.
 
 ## Accuracy
 

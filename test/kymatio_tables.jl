@@ -33,7 +33,7 @@ function morlet_1d(N, ξ, σ)
   f ./ sum(abs, ifft(f))
 end
 
-# centre frequencies and bandwidths, in cycles per sample
+# center frequencies and bandwidths, in cycles per sample
 function anden(J, Q)
   step = 2^(1 / Q)
   ξ = max(1 / (1 + 2^(3 / Q)), 0.35)

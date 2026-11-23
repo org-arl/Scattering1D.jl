@@ -55,6 +55,7 @@ struct BatchedPlan{T,AI,AC,AB,R2,Z2,G<:Group,PX,PF} <: ScatteringPlan{T}
   groups2::Vector{G}
   forward::PX
   output::PF
+  reverse::Base.RefValue{Any}  # plans and tables of the reverse pass, built at its first use
 end
 
 ### public API
@@ -106,7 +107,7 @@ function BatchedPlan(t::Tables{T}, x::AbstractMatrix) where T
   forward, output = plan_rfft(xp, 1), plan_brfft(F, g.m, 1)
   BatchedPlan{T,typeof(reflect),typeof(folds[1].w),typeof(folds[1].c),typeof(xp),typeof(X),
     eltype(groups1),typeof(forward),typeof(output)}(g, t.slots, length(t.bands), batch, reflect,
-    folds, xp, X, E, F, R, groups1, groups2, forward, output)
+    folds, xp, X, E, F, R, groups1, groups2, forward, output, Ref{Any}(nothing))
 end
 
 # signal sample that reflection puts at padded sample `t`

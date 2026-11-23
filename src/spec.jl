@@ -1,10 +1,10 @@
 """
     Wavelets(fmin, fmax, Q; crossover=1.0)
 
-Constant-Q bank of Morlet wavelets with centre frequencies `fmin·2^(k/Q)` up
+Constant-Q bank of Morlet wavelets with center frequencies `fmin·2^(k/Q)` up
 to `fmax` (Hz). Each wavelet has a Gaussian frequency response whose standard
-deviation is chosen so that neighbouring responses cross `crossover` standard
-deviations away from their centres.
+deviation is chosen so that neighboring responses cross `crossover` standard
+deviations away from their centers.
 """
 struct Wavelets
   fmin::Float64
@@ -23,7 +23,7 @@ Second-order scattering transform of signals sampled at `fs` Hz, reported on
 `bins` equally spaced time bins spanning the signal.
 
 `ψ1` filters the signal into bands and `ψ2` filters each band's envelope. A
-modulation wavelet is applied to a band only if its centre frequency is at
+modulation wavelet is applied to a band only if its center frequency is at
 most `cutoff` times the band's bandwidth, and `ψ2.fmax` may be `Inf` to leave
 that rule as the only limit. Every order is smoothed by a Gaussian low-pass
 filter whose gain at the output Nyquist frequency is `attenuation`.
@@ -62,10 +62,10 @@ end
 """
     frequencies(spec)
 
-Centre frequencies (Hz) of the first-order bands, in the order of the band
+Center frequencies (Hz) of the first-order bands, in the order of the band
 dimension of the output.
 """
-frequencies(spec::ScatteringSpec) = centres(spec.ψ1, spec.ψ1.fmax)
+frequencies(spec::ScatteringSpec) = centers(spec.ψ1, spec.ψ1.fmax)
 
 """
     bandwidths(spec)
@@ -77,11 +77,11 @@ bandwidths(spec::ScatteringSpec) = frequencies(spec) .* relative_width(spec.ψ1)
 """
     modulations(spec)
 
-Centre frequencies (Hz) of the modulation wavelets, in the order of the
+Center frequencies (Hz) of the modulation wavelets, in the order of the
 modulation dimension of the output.
 """
 function modulations(spec::ScatteringSpec)
-  centres(spec.ψ2, min(spec.ψ2.fmax, spec.cutoff * maximum(bandwidths(spec))))
+  centers(spec.ψ2, min(spec.ψ2.fmax, spec.cutoff * maximum(bandwidths(spec))))
 end
 
 """
@@ -98,7 +98,7 @@ end
 """
     times(spec, n)
 
-Centre times (s) of the output bins for signals of `n` samples.
+Center times (s) of the output bins for signals of `n` samples.
 """
 times(spec::ScatteringSpec, n) = (((0:spec.bins-1) .+ 0.5) .* (n / spec.bins) .- 0.5) ./ spec.fs
 
@@ -106,7 +106,7 @@ times(spec::ScatteringSpec, n) = (((0:spec.bins-1) .+ 0.5) .* (n / spec.bins) .-
 
 relative_width(ψ::Wavelets) = (2^(1 / ψ.Q) - 1) / ψ.crossover
 
-function centres(ψ::Wavelets, fmax)
+function centers(ψ::Wavelets, fmax)
   fmax < ψ.fmin && return Float64[]
   ψ.fmin .* exp2.((0:floor(Int, ψ.Q * log2(fmax / ψ.fmin))) ./ ψ.Q)
 end

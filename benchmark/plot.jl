@@ -4,7 +4,7 @@
 # Graphs are written as SVG, with PDF and PNG copies. `performance` is the one
 # shown in the README. `comparison` adds the implementation this package
 # replaces, and is drawn only where that implementation's timings are present.
-# Each has four panels: machine (rows) by settings (columns). Colour
+# Each has four panels: machine (rows) by settings (columns). Color
 # tells the implementation and line style the device, so the same line means
 # the same thing in every panel.
 

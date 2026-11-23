@@ -32,9 +32,25 @@ struct Work{T}
   r::Vector{T}                     # output samples spanning the padded signal
 end
 
+# Buffers of the reverse pass owned by one task.
+struct ReverseWork{T}
+  z::Vector{Vector{Complex{T}}}  # band signal, one per FFT length
+  g::Vector{Vector{Complex{T}}}  # gradient of a band's envelope spectrum, one per FFT length
+  X̄::Vector{Complex{T}}          # gradient of the padded signal's spectrum
+end
+
+# FFT plans and buffers that only the reverse pass needs.
+struct Reverse{T,PS,PE,PO,PX}
+  spread::Vector{PS}    # gradient of a band or path signal to that of its window, per FFT length
+  envelope::Vector{PE}  # gradient of an envelope spectrum to that of the envelope, per FFT length
+  output::PO            # gradient of the output samples to that of their spectrum
+  signal::PX            # gradient of the padded signal's spectrum to that of the padded signal
+  works::Vector{Tuple{Work{T},ReverseWork{T}}}
+end
+
 # Plan for `Array` input: every band of every signal is a unit of work, and
 # units are shared out among tasks.
-struct ThreadedPlan{T,PX,PZ,PE,PF} <: ScatteringPlan{T}
+struct ThreadedPlan{T,PX,PZ,PE,PF,R<:Reverse} <: ScatteringPlan{T}
   geometry::Geometry
   slots::Int
   φ::Vector{Complex{T}}
@@ -52,6 +68,7 @@ struct ThreadedPlan{T,PX,PZ,PE,PF} <: ScatteringPlan{T}
   output::PF                  # spectrum to output samples
   X::Vector{Complex{T}}       # spectra of all signals of the batch, one after another
   works::Vector{Work{T}}
+  reverse::Base.RefValue{Union{Nothing,R}}  # built at the first reverse pass
 end
 
 ### public API
@@ -99,8 +116,9 @@ function ThreadedPlan(t::Tables{T}) where T
   output = plan_brfft(Vector{Complex{T}}(undef, g.m ÷ 2 + 1), g.m; flags=FFTW.MEASURE)
   FFTW.set_num_threads(threads)
   works = [Work{T}(sizes, g) for _ in 1:Threads.nthreads()]
+  R = Reverse{T,typeof(plan_fft!(zeros(Complex{T}, 2))),typeof(output),typeof(forward),typeof(output)}
   ThreadedPlan(g, t.slots, t.φ, t.w1, t.w2, bands, paths, band_paths, segments1, segments2,
-    sizes, forward, inverse, envelope, output, Complex{T}[], works)
+    sizes, forward, inverse, envelope, output, Complex{T}[], works, Ref{Union{Nothing,R}}(nothing))
 end
 
 dimensions(plan::ThreadedPlan) = (plan.geometry.bins, plan.slots, length(plan.bands))
@@ -206,6 +224,16 @@ end
 # `scale`, and write that envelope's spectrum to `E`.
 function envelope!(E, plan, work, X, w, stage, segments, scale)
   z, e = work.z[stage.size], work.e[stage.size]
+  filter!(z, plan, X, w, stage, segments)
+  c = convert(eltype(e), scale)
+  @inbounds @simd for j in eachindex(e)
+    e[j] = sqrt(abs2(z[j])) * c
+  end
+  mul!(E, plan.envelope[stage.size], e)
+end
+
+# Filter the spectrum `X` with `stage` and write the resulting signal to `z`.
+function filter!(z, plan, X, w, stage, segments)
   @inbounds for s in stage.segments
     seg = segments[s]
     dst, src, wat = Int(seg.dst), Int(seg.src), stage.at + seg.dst - 1
@@ -221,11 +249,6 @@ function envelope!(E, plan, work, X, w, stage, segments, scale)
   end
   @inbounds z[stage.len+1:end] .= 0
   plan.inverse[stage.size] * z
-  c = convert(eltype(e), scale)
-  @inbounds @simd for j in eachindex(e)
-    e[j] = sqrt(abs2(z[j])) * c
-  end
-  mul!(E, plan.envelope[stage.size], e)
 end
 
 # Low-pass the envelope spectrum `E` (bins 0 to kmax), scale it, and write the

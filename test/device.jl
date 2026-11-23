@@ -23,5 +23,12 @@ function device_tests(to_device)
     # GPU transforms need not repeat bit for bit
     @test Array(f.S1) ≈ Array(c.S1)
     @test_throws DimensionMismatch scatter(plan, to_device(randn(Float32, 40_000, batch + 1)))
+    rng = MersenneTwister(batch)
+    c̄ = Coefficients(randn.(rng, Float32, size.((expected.S0, expected.S1, expected.S2)))...)
+    c̄d = Coefficients(to_device.((c̄.S0, c̄.S1, c̄.S2))...)
+    x̄ = @inferred backpropagate(plan, xd, c̄d)
+    theirs = backpropagate(Scattering1D.ThreadedPlan(tables), x, c̄)
+    @test typeof(x̄) == typeof(xd)
+    @test norm(Array(x̄) - theirs) < 1e-4 * norm(theirs)
   end
 end

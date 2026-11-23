@@ -118,5 +118,39 @@ working_spec(bins; kw...) =
     end
   end
 
+  # The reverse pass applies the transpose of the transform's Jacobian, so its
+  # result paired with any direction must equal the directional derivative.
+  @testset "gradients" begin
+    rng = MersenneTwister(6)
+    gradients(c) = c isa Coefficients ? Coefficients(randn.(rng, size.((c.S0, c.S1, c.S2)))...) :
+      FirstOrder(randn.(rng, size.((c.S0, c.S1)))...)
+    paired(c̄, a, b, active) = dot(c̄.S0, a.S0 - b.S0) + dot(c̄.S1, a.S1 - b.S1) +
+      (c̄ isa Coefficients ? dot(c̄.S2[:, active, :], (a.S2-b.S2)[:, active, :]) : 0)
+    ψ1, ψ2 = Wavelets(100, 2000, 8), Wavelets(4, Inf, 1; crossover=3.0)
+    cases = ((ScatteringSpec(4096, 64, ψ1, ψ2), 4096, 1), (ScatteringSpec(4096, 64, ψ1, ψ2), 4096, 5),
+      (working_spec(225), 40_000, 2))
+    for (spec, n, batch) in cases, transform in (scatter, first_order)
+      x, δ, h = randn(rng, n, batch), randn(rng, n, batch), 1e-6
+      plan = ScatteringPlan(spec, x)
+      c̄ = gradients(transform(plan, x))
+      x̄ = @inferred backpropagate(plan, x, c̄)
+      derivative = paired(c̄, transform(plan, x + h * δ), transform(plan, x - h * δ), mask(spec)) / 2h
+      @test isapprox(dot(x̄, δ), derivative; rtol=1e-6)
+      tables = Scattering1D.Tables{Float64}(spec, n, Scattering1D.coarse_size)
+      threaded, batched = Scattering1D.ThreadedPlan(tables), Scattering1D.BatchedPlan(tables, x)
+      @test relative_error((@inferred backpropagate(batched, x, c̄)), backpropagate(threaded, x, c̄)) < 1e-10
+    end
+    spec = working_spec(225)
+    x = randn(rng, Float32, 40_000, 2)
+    plan = ScatteringPlan(spec, x)
+    c̄ = Coefficients(randn.(rng, Float32, size.((scatter(plan, x).S0, scatter(plan, x).S1, scatter(plan, x).S2)))...)
+    x̄ = backpropagate(plan, x, c̄)
+    c̄.S2[:, .!mask(spec), :] .= 7
+    # tasks add their shares in an order that varies, so rounding differs between runs
+    @test backpropagate(plan, x, c̄) ≈ x̄
+    @test_throws DimensionMismatch backpropagate(plan, x[:, 1:1], c̄)
+    @test_throws DimensionMismatch backpropagate!(zeros(Float32, 40_000, 3), plan, x, c̄)
+  end
+
   include("kymatio.jl")
 end
