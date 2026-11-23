@@ -113,6 +113,7 @@ working_spec(bins; kw...) =
       @test @allocated(scatter!(c, plan, x)) < 100_000
       batched = Scattering1D.BatchedPlan(Scattering1D.Tables{T}(spec, 40_000, Scattering1D.coarse_size), x)
       cb = @inferred scatter(batched, x)
+      scatter!(cb, batched, x)
       @test @allocated(scatter!(cb, batched, x)) < 1000
     end
   end

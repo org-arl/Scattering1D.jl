@@ -1,5 +1,7 @@
 # Scattering1D.jl
 
+[![CI](https://github.com/org-arl/Scattering1D.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/org-arl/Scattering1D.jl/actions/workflows/CI.yml)
+
 A fast 1D scattering transform for Julia, on CPU threads and on GPUs.
 
 Given a batch of signals, it returns three sets of coefficients on a common time axis:
