@@ -1,0 +1,12 @@
+n = 40000
+J = 10
+Q1 = 35
+Q2 = 1
+padded = 65536
+pad_left = 12768
+log2_stride = 8
+first = 50
+last = 207
+bands = 240
+modulations = 11
+paths = 1446

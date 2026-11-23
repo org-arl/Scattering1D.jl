@@ -1,0 +1,20 @@
+Manifest.toml
+__pycache__/
+.DS_Store
+
+# Python environment and recorded timings
+benchmark/.venv/
+benchmark/results/
+devices/*/results/
+
+# the implementation this package replaces
+devices/cuda/old/
+
+# graphs: only the README's performance.png is kept
+benchmark/comparison.*
+benchmark/*.svg
+benchmark/*.pdf
+
+# transfer bundles
+*.tgz
+*.tar.gz
