@@ -6,10 +6,10 @@
 using Scattering1D, Test, Random, LinearAlgebra
 using ChainRulesCore, Zygote, Enzyme, Mooncake
 
-const SPEC = ScatteringSpec(4096, 64, Wavelets(100, 2000, 8), Wavelets(4, Inf, 1; crossover=3.0))
+const SPEC = ScatteringSpec(4096, 64, Morlets(100, 2000, 8), Morlets(4, Inf, 1; crossover=3.0))
 const ACTIVE = mask(SPEC)
 
-both_orders(plan, x) = (c = scatter(plan, x); sum(abs2, c.S0) + sum(log1p, c.S1) + sum(sqrt, c.S2[:, ACTIVE, :]))
+both_orders(plan, x) = (c = scattering(plan, x); sum(abs2, c.S0) + sum(log1p, c.S1) + sum(sqrt, c.S2[:, ACTIVE, :]))
 first_only(plan, x) = (c = first_order(plan, x); sum(abs2, c.S1) + sum(c.S0))
 
 function gradient_with(::Val{:Zygote}, loss, plan, x)

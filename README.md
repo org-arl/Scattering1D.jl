@@ -1,6 +1,6 @@
 # Scattering1D.jl
 
-[![CI](https://github.com/org-arl/Scattering1D.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/org-arl/Scattering1D.jl/actions/workflows/CI.yml)
+[![CI](https://github.com/org-arl/Scattering1D.jl/actions/workflows/CI.yml/badge.svg)](https://github.com/org-arl/Scattering1D.jl/actions/workflows/CI.yml) [![Codecov](https://codecov.io/gh/org-arl/Scattering1D.jl/branch/main/graph/badge.svg)](https://codecov.io/gh/org-arl/Scattering1D.jl)
 
 A fast 1D scattering transform for Julia, on CPU threads and on GPUs.
 
@@ -26,13 +26,13 @@ pkg> add https://github.com/org-arl/Scattering1D.jl
 using Scattering1D
 
 fs = 40_000                                   # sampling rate, Hz
-ψ1 = Wavelets(250, 20_000, 35)                # 250 Hz to 20 kHz, 35 per octave
-ψ2 = Wavelets(4, Inf, 1; crossover=3.0)       # modulation: from 4 Hz, 1 per octave
+ψ1 = Morlets(250, 20_000, 35)                 # 250 Hz to 20 kHz, 35 per octave
+ψ2 = Morlets(4, Inf, 1; crossover=3.0)        # modulation: from 4 Hz, 1 per octave
 spec = ScatteringSpec(fs, 225, ψ1, ψ2)        # 225 time bins per signal
 
 x = randn(Float32, 40_000, 16)                # samples × batch
 plan = ScatteringPlan(spec, x)
-c = scatter(plan, x)
+c = scattering(plan, x)
 
 size(c.S0)  # (225, 16)            time × batch
 size(c.S1)  # (225, 222, 16)       time × band × batch
@@ -53,16 +53,16 @@ mask(spec)          # modulation × band, true where S2 is computed
 times(spec, 40_000) # center time of each bin, s, for 40,000-sample signals
 ```
 
-A modulation wavelet is applied to a band only if its center frequency is at most `cutoff` (default 6) times the band's bandwidth. Narrow bands therefore get fewer modulation wavelets than wide ones. Entries of `S2` where `mask(spec)` is `false` are never written: they are zero in arrays made by `scatter` or `Coefficients`.
+A modulation wavelet is applied to a band only if its center frequency is at most `cutoff` (default 6) times the band's bandwidth. Narrow bands therefore get fewer modulation wavelets than wide ones. Entries of `S2` where `mask(spec)` is `false` are never written: they are zero in arrays made by `scattering` or `Coefficients`.
 
 ## Reusing output arrays
 
-`scatter!` writes into arrays that already exist, so a loop over batches allocates almost nothing:
+`scattering!` writes into arrays that already exist, so a loop over batches allocates almost nothing:
 
 ```julia
 c = Coefficients(plan, 16)     # zeroed output arrays for batches of 16
 for x in batches
-  scatter!(c, plan, x)
+  scattering!(c, plan, x)
   # use c.S0, c.S1, c.S2
 end
 ```
@@ -79,14 +79,14 @@ first_order!(f, plan, x)
 
 ## Gradients
 
-Gradients with respect to the signals pass through `scatter` and `first_order`, so the transform can sit after trainable steps or inside a loss function. The filters are fixed: there is no gradient with respect to them.
+Gradients with respect to the signals pass through `scattering` and `first_order`, so the transform can sit after trainable steps or inside a loss function. The filters are fixed: there is no gradient with respect to them.
 
 With Zygote:
 
 ```julia
 using Scattering1D, Zygote
 
-loss(x) = sum(abs2, scatter(plan, x).S1)
+loss(x) = sum(abs2, scattering(plan, x).S1)
 x̄ = Zygote.gradient(loss, x)[1]      # same size as x
 ```
 
@@ -104,7 +104,7 @@ The kind of array given to `ScatteringPlan` selects the device. The coefficients
 using CUDA                     # or: using Metal
 xg = CuArray(x)                # or: MtlArray(x)
 plan = ScatteringPlan(spec, xg)
-c = scatter(plan, xg)
+c = scattering(plan, xg)
 ```
 
 - A plan for an `Array` runs on CPU threads and accepts any batch size. Start Julia with threads, for example `julia -t 12`.
@@ -116,7 +116,7 @@ A plan holds work buffers and must not be used from several tasks at once.
 
 ## Settings
 
-`Wavelets(fmin, fmax, Q; crossover=1.0)` describes a constant-Q bank of Morlet wavelets: center frequencies `fmin·2^(k/Q)` up to `fmax`, with Gaussian responses whose neighbors cross `crossover` standard deviations from their centers. A larger `crossover` gives narrower, less overlapping filters.
+`Morlets(fmin, fmax, Q; crossover=1.0)` describes a constant-Q bank of Morlet wavelets: center frequencies `fmin·2^(k/Q)` up to `fmax`, with Gaussian responses whose neighbors cross `crossover` standard deviations from their centers. A larger `crossover` gives narrower, less overlapping filters.
 
 `ScatteringSpec(fs, bins, ψ1, ψ2; ...)` takes these keywords:
 

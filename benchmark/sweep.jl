@@ -10,7 +10,7 @@ function sweep(to_device; sync=() -> nothing, release=() -> nothing, batches=(16
     tables = Scattering1D.Tables{Float32}(WORKING, N, n -> Scattering1D.coarse_size(n, mantissas))
     plan = Scattering1D.BatchedPlan(tables, x)
     c = Coefficients(plan, batch)
-    seconds = best_time(() -> (scatter!(c, plan, x); sync()))
+    seconds = best_time(() -> (scattering!(c, plan, x); sync()))
     groups = length(plan.groups1) + length(plan.groups2)
     samples = sum(b.M for b in tables.bands) + sum(p.M for p in tables.paths)
     push!(rows, join((join(mantissas, "-"), batch, groups, samples, round(1e3 * seconds / batch; digits=4)), ","))

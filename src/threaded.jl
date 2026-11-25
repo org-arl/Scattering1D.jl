@@ -77,7 +77,7 @@ function ScatteringPlan(spec::ScatteringSpec, x::Matrix{T}) where T<:AbstractFlo
   ThreadedPlan(Tables{T}(spec, size(x, 1), smooth_size))
 end
 
-function scatter!(c::Coefficients, plan::ThreadedPlan, x::AbstractMatrix)
+function scattering!(c::Coefficients, plan::ThreadedPlan, x::AbstractMatrix)
   check_sizes(plan, x, c.S0, c.S1)
   size(c.S2) == (plan.geometry.bins, plan.slots, length(plan.bands), size(x, 2)) ||
     throw(DimensionMismatch("S2 does not match the plan and batch"))

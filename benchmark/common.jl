@@ -11,7 +11,7 @@ include(joinpath(@__DIR__, "..", "test", "kymatio_tables.jl"))
 
 const N = 40_000
 const BATCHES = (1, 2, 4, 8, 16, 32, 64, 128)
-const WORKING = ScatteringSpec(40_000, 225, Wavelets(250, 20_000, 35), Wavelets(4, Inf, 1; crossover=3.0))
+const WORKING = ScatteringSpec(40_000, 225, Morlets(250, 20_000, 35), Morlets(4, Inf, 1; crossover=3.0))
 
 # shortest of repeated runs, in seconds, stopping after `budget` seconds
 function best_time(run; budget=5.0)
@@ -39,7 +39,7 @@ function benchmark(label, to_device, plan_tables; sync=() -> nothing, release=()
     x = to_device(randn(MersenneTwister(batch), Float32, N, batch))
     plan = ScatteringPlan(WORKING, x)
     c, f = Coefficients(plan, batch), FirstOrder(plan, batch)
-    record("working", batch, "both", best_time(() -> (scatter!(c, plan, x); sync())))
+    record("working", batch, "both", best_time(() -> (scattering!(c, plan, x); sync())))
     record("working", batch, "first", best_time(() -> (first_order!(f, plan, x); sync())))
     plan = c = f = nothing
     release()
@@ -48,7 +48,7 @@ function benchmark(label, to_device, plan_tables; sync=() -> nothing, release=()
       tables = kymatio_tables(kymatio_meta(meta))
       plan = plan_tables(Scattering1D.Tables{Float32}(tables), x)
       c = Coefficients(plan, batch)
-      record("as-kymatio-$tag", batch, "both", best_time(() -> (scatter!(c, plan, x); sync())))
+      record("as-kymatio-$tag", batch, "both", best_time(() -> (scattering!(c, plan, x); sync())))
       plan = c = nothing
       release()
     end

@@ -1,5 +1,5 @@
 # Reverse-mode rules for automatic differentiation: gradients with respect to
-# the signals pass through `scatter` and `first_order`. Plans are constants.
+# the signals pass through `scattering` and `first_order`. Plans are constants.
 
 module Scattering1DChainRulesCoreExt
 
@@ -9,15 +9,15 @@ ChainRulesCore.@non_differentiable ScatteringPlan(::Any...)
 ChainRulesCore.@non_differentiable Coefficients(::ScatteringPlan, ::Any)
 ChainRulesCore.@non_differentiable FirstOrder(::ScatteringPlan, ::Any)
 
-function ChainRulesCore.rrule(::typeof(scatter), plan::ScatteringPlan, x::AbstractMatrix)
-  c = scatter(plan, x)
-  function scatter_pullback(c̄)
+function ChainRulesCore.rrule(::typeof(scattering), plan::ScatteringPlan, x::AbstractMatrix)
+  c = scattering(plan, x)
+  function scattering_pullback(c̄)
     c̄ = unthunk(c̄)
     filled = Coefficients(dense(c̄.S0, c.S0), dense(c̄.S1, c.S1), dense(c̄.S2, c.S2))
     NoTangent(), NoTangent(), backpropagate(plan, x, filled)
   end
-  scatter_pullback(::AbstractZero) = (NoTangent(), NoTangent(), ZeroTangent())
-  c, scatter_pullback
+  scattering_pullback(::AbstractZero) = (NoTangent(), NoTangent(), ZeroTangent())
+  c, scattering_pullback
 end
 
 function ChainRulesCore.rrule(::typeof(first_order), plan::ScatteringPlan, x::AbstractMatrix)

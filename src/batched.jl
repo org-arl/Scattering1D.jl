@@ -64,7 +64,7 @@ function ScatteringPlan(spec::ScatteringSpec, x::AbstractMatrix{T}) where T<:Abs
   BatchedPlan(Tables{T}(spec, size(x, 1), coarse_size), x)
 end
 
-function scatter!(c::Coefficients, plan::BatchedPlan, x::AbstractMatrix)
+function scattering!(c::Coefficients, plan::BatchedPlan, x::AbstractMatrix)
   check_sizes(plan, x, c.S0, c.S1)
   size(c.S2) == (plan.geometry.bins, plan.slots, plan.bands, plan.batch) ||
     throw(DimensionMismatch("S2 does not match the plan"))

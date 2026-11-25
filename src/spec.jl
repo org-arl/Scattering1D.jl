@@ -1,19 +1,19 @@
 """
-    Wavelets(fmin, fmax, Q; crossover=1.0)
+    Morlets(fmin, fmax, Q; crossover=1.0)
 
 Constant-Q bank of Morlet wavelets with center frequencies `fmin·2^(k/Q)` up
 to `fmax` (Hz). Each wavelet has a Gaussian frequency response whose standard
 deviation is chosen so that neighboring responses cross `crossover` standard
 deviations away from their centers.
 """
-struct Wavelets
+struct Morlets
   fmin::Float64
   fmax::Float64
   Q::Int
   crossover::Float64
 end
 
-Wavelets(fmin, fmax, Q; crossover=1.0) = Wavelets(fmin, fmax, Q, crossover)
+Morlets(fmin, fmax, Q; crossover=1.0) = Morlets(fmin, fmax, Q, crossover)
 
 """
     ScatteringSpec(fs, bins, ψ1, ψ2; cutoff=6.0, attenuation=0.1, reach=6.0,
@@ -38,8 +38,8 @@ The remaining keywords trade accuracy for speed:
 struct ScatteringSpec
   fs::Float64
   bins::Int
-  ψ1::Wavelets
-  ψ2::Wavelets
+  ψ1::Morlets
+  ψ2::Morlets
   cutoff::Float64
   attenuation::Float64
   reach::Float64
@@ -104,9 +104,9 @@ times(spec::ScatteringSpec, n) = (((0:spec.bins-1) .+ 0.5) .* (n / spec.bins) .-
 
 ### helpers
 
-relative_width(ψ::Wavelets) = (2^(1 / ψ.Q) - 1) / ψ.crossover
+relative_width(ψ::Morlets) = (2^(1 / ψ.Q) - 1) / ψ.crossover
 
-function centers(ψ::Wavelets, fmax)
+function centers(ψ::Morlets, fmax)
   fmax < ψ.fmin && return Float64[]
   ψ.fmin .* exp2.((0:floor(Int, ψ.Q * log2(fmax / ψ.fmin))) ./ ψ.Q)
 end

@@ -12,8 +12,8 @@ using AbstractFFTs: plan_rfft, plan_brfft, plan_bfft!, plan_fft!
 using LinearAlgebra: mul!
 import FFTW
 
-export Wavelets, ScatteringSpec, ScatteringPlan, Coefficients, FirstOrder
-export scatter, scatter!, first_order, first_order!, backpropagate, backpropagate!
+export Morlets, ScatteringSpec, ScatteringPlan, Coefficients, FirstOrder
+export scattering, scattering!, first_order, first_order!, backpropagate, backpropagate!
 export frequencies, bandwidths, modulations, mask, times
 
 ### types
@@ -35,7 +35,7 @@ abstract type ScatteringPlan{T} end
 """
     Coefficients(plan, batch)
 
-Zeroed output arrays for `scatter!`: `S0` (time × batch) is the low-passed
+Zeroed output arrays for `scattering!`: `S0` (time × batch) is the low-passed
 signal, `S1` (time × band × batch) the low-passed band envelopes, and `S2`
 (time × modulation × band × batch) the low-passed modulation envelopes.
 Entries of `S2` outside `mask(spec)` are never written.
@@ -78,20 +78,20 @@ function FirstOrder(plan::ScatteringPlan, batch)
 end
 
 """
-    scatter(plan, x)
+    scattering(plan, x)
 
 Scattering transform of each column of `x`, returned as `Coefficients`.
 """
-scatter(plan::ScatteringPlan, x::AbstractMatrix) =
-  scatter!(Coefficients(plan, size(x, 2)), plan, x)
+scattering(plan::ScatteringPlan, x::AbstractMatrix) =
+  scattering!(Coefficients(plan, size(x, 2)), plan, x)
 
 """
-    scatter!(c, plan, x)
+    scattering!(c, plan, x)
 
 Scattering transform of each column of `x`, written into the `Coefficients`
 `c`.
 """
-function scatter! end
+function scattering! end
 
 """
     first_order(plan, x)
@@ -117,7 +117,7 @@ Gradient with respect to the signals `x` of a scalar whose gradient with
 respect to their scattering coefficients is `c̄`: the transpose of the
 transform's Jacobian applied to `c̄`.
 
-`c̄` is a `Coefficients` to go back through `scatter`, or a `FirstOrder` to go
+`c̄` is a `Coefficients` to go back through `scattering`, or a `FirstOrder` to go
 back through `first_order`. Entries of `c̄.S2` outside `mask(spec)` are
 ignored. The filters are constants: there is no gradient with respect to them.
 """

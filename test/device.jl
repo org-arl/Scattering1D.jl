@@ -5,15 +5,15 @@
 using Scattering1D, Test, Random, LinearAlgebra
 
 function device_tests(to_device)
-  spec = ScatteringSpec(40_000, 225, Wavelets(250, 20_000, 35), Wavelets(4, Inf, 1; crossover=3.0))
+  spec = ScatteringSpec(40_000, 225, Morlets(250, 20_000, 35), Morlets(4, Inf, 1; crossover=3.0))
   @testset "batch of $batch" for batch in (1, 3)
     x = randn(MersenneTwister(batch), Float32, 40_000, batch)
     xd = to_device(x)
     tables = Scattering1D.Tables{Float32}(spec, size(x, 1), Scattering1D.coarse_size)
-    expected = scatter(Scattering1D.ThreadedPlan(tables), x)
+    expected = scattering(Scattering1D.ThreadedPlan(tables), x)
     plan = ScatteringPlan(spec, xd)
     @test plan isa Scattering1D.BatchedPlan
-    c = @inferred scatter(plan, xd)
+    c = @inferred scattering(plan, xd)
     @test typeof(c.S2) == typeof(to_device(expected.S2))
     for name in (:S0, :S1, :S2)
       ours, theirs = Array(getfield(c, name)), getfield(expected, name)
@@ -22,7 +22,7 @@ function device_tests(to_device)
     f = @inferred first_order(plan, xd)
     # GPU transforms need not repeat bit for bit
     @test Array(f.S1) ≈ Array(c.S1)
-    @test_throws DimensionMismatch scatter(plan, to_device(randn(Float32, 40_000, batch + 1)))
+    @test_throws DimensionMismatch scattering(plan, to_device(randn(Float32, 40_000, batch + 1)))
     rng = MersenneTwister(batch)
     c̄ = Coefficients(randn.(rng, Float32, size.((expected.S0, expected.S1, expected.S2)))...)
     c̄d = Coefficients(to_device.((c̄.S0, c̄.S1, c̄.S2))...)
